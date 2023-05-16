@@ -5,15 +5,13 @@ import { GraphSideBar } from "./GraphSidebar"
 
 export const Graph = () => {
 
-    return <div>
-        
-        <div className='row justify-content-center'>
-            <div className='col-10'>
-                <GraphView />
-            </div>
-            <div className='col-2'>
-                <GraphSideBar />
-            </div>
+    return <div className='row justify-content-center g-0'>
+
+        <div className='col-10'>
+            <GraphView />
+        </div>
+        <div className='col-2'>
+            <GraphSideBar />
         </div>
 
     </div>

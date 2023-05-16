@@ -9,9 +9,15 @@ export const GraphView = () => {
 
 
     const state = useGraphStore().graph
+    const {targetToSelect, setLink, link, setTargetToSelect} = useGraphStore((state) => ({
+        link: state.link,
+        setLink: state.setLink,
+        targetToSelect: state.targetToSelect,
+        setTargetToSelect: state.setTargetToSelect
+    }))
     
-    
-    const setSelectedNode = useGraphStore(state => state.setSelectedNode)
+
+    const setGraphElemInfo = useGraphStore(state => state.setGraphElemInfo)
     //   --------------------------------------------------------------------------------------------------
     // Скопировал из примера в документации и дополнил
 
@@ -60,7 +66,23 @@ export const GraphView = () => {
             highlightNodes.add(node);
             node.neighbors?.forEach((neighbor: any) => highlightNodes.add(neighbor));
             node.links?.forEach((link: any) => highlightLinks.add(link));
-            setSelectedNode(node.id)
+            setGraphElemInfo(node)
+            switch (targetToSelect) {
+                case 'start':
+                    setLink({...link, start: node.id})
+                    setTargetToSelect(undefined)
+                    break;
+                case 'end':
+                    setLink({...link, end: node.id})
+                    setTargetToSelect(undefined)
+                    break;
+                default:
+                    console.log('default select')
+                    break;
+            }
+        } else {
+        setGraphElemInfo(undefined)
+
         }
 
         setHoverNode(node || null);
@@ -75,19 +97,24 @@ export const GraphView = () => {
         highlightLinks.clear();
 
         if (link) {
+        setGraphElemInfo(link)
         highlightLinks.add(link);
         highlightNodes.add(link.source);
         highlightNodes.add(link.target);
+    } else {
+        setGraphElemInfo(undefined)
     }
-
         updateHighlight();
     };
 
     const paintRing = React.useCallback((node: any, ctx: any) => {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, NODE_R * 0.7, 0, 2 * Math.PI, false);
-        // ctx.arc(node.x, node.y, NODE_R * 1.4, 0, 2 * Math.PI, false);
-        ctx.fillStyle = node === hoverNode ? 'red' : 'orange';
+        ctx.font = "0.3em system-ui"
+        ctx.fillText(node.label, node.x, node.y + 10)
+        if(highlightNodes.has(node)){
+            ctx.arc(node.x, node.y, NODE_R * 0.7, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node === hoverNode ? 'red' : 'orange';
+        }
         ctx.fill();
     }, [hoverNode]);
     //   --------------------------------------------------------------------------------------------------
@@ -128,7 +155,7 @@ export const GraphView = () => {
             linkWidth={link => highlightLinks.has(link) ? 5 : 1}
             linkDirectionalParticles={4}
             linkDirectionalParticleWidth={link => highlightLinks.has(link) ? 4 : 0}
-            nodeCanvasObjectMode={node => highlightNodes.has(node) ? 'before' : undefined}
+            nodeCanvasObjectMode={node => highlightNodes.has(node) ? 'before' : 'after' }
             nodeCanvasObject={paintRing}
         />
     </div>

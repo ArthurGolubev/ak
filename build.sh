@@ -4,16 +4,16 @@ start=$SECONDS
 cd frontend && \
 npx webpack build --mode=development
 
-cd ../
+# cd ../
 
-# cd ../ && \
-# docker buildx build \
-# --push \
-# --platform linux/amd64 \
-# --tag arthurgo/ak:0.1 .
+cd ../ && \
+docker buildx build \
+--push \
+--platform linux/amd64 \
+--tag arthurgo/ak:0.1 .
 
 
-deploy="../kubernetes/ak"
+deploy="../kubernetes/ak/ak-web"
 microk8s.kubectl delete -f "$deploy/03_dev_deployment_ak.yml"
 microk8s.kubectl apply -f "$deploy/03_dev_deployment_ak.yml"
 

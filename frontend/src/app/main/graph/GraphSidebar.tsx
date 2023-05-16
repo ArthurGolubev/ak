@@ -1,43 +1,49 @@
 import * as React from 'react'
-import axios from 'axios'
 import { useGraphStore } from '../../store'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 
 export const GraphSideBar = () => {
 
-    const {fetchGraph, isLoading, createNode} = useGraphStore((state) => ({
+    const {fetchGraph, isLoading} = useGraphStore((state) => ({
         isLoading: state.isLoading,
         fetchGraph: state.fetchGraph,
-        createNode: state.createNewNode,
     }))
 
+    const location = useLocation()
 
-    const [label, setLabel] = React.useState('')
+
 
     React.useEffect(() => {
         const result = async () => fetchGraph()
         result()
     }, [])
 
-    return <div className='card' style={{height: '100vh'}}>
+    return <div className='card' style={{height: '94vh'}}>
         <div className='card-body'>
+
+            <div className='row justify-content-center'>
+                <div className='col-12'>
+                    <ul className='nav nav-tabs'>
+                        <li className='nav-item'>
+                            <Link
+                                className={location.pathname == '/main/graph-view/create' ? 'nav-link active' : 'nav-link' }
+                                to={'/main/graph-view/create'}>Create</Link>
+                        </li>
+                        <li className='nav-item'>
+                            <Link
+                                className={location.pathname == '/main/graph-view/info' ? 'nav-link active' : 'nav-link' }
+                                to={'/main/graph-view/info'}>Info</Link>
+                        </li>
+                        <li className='nav-item'>
+                            <Link
+                                className={location.pathname == '/main/graph-view/delete' ? 'nav-link active' : 'nav-link' }
+                                to={'/main/graph-view/delete'}>Delete</Link>
+                        </li>
+                    </ul>
+                </div>
+            </div>
             
-            <div className='row justify-content-center mt-3'>
-                <div className='col-11'>
-                    <input className='form-control mt-2' type="text" placeholder='Label' onChange={e => setLabel(e.target.value)} value={label}/>
-                </div>
-            </div>
-
-            <div className='row justify-content-center mt-3'>
-                <div className='col-auto'>
-                    <button onClick={() => createNode(label)} className='btn btn-sm btn-primary' type='button'>Create Node</button>
-                </div>
-            </div>
-
-            <div className='row justify-content-center mt-3'>
-                <div className='col-auto'>
-                    <button onClick={() => fetchGraph()} className='btn btn-sm btn-primary' type='button'>Get All Nodes</button>
-                </div>
-            </div>
+            <Outlet />
 
         </div>
     </div>

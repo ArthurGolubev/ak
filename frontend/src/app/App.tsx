@@ -7,7 +7,13 @@ import axios from 'axios'
 
 export const App = () => {
 
-    return <div style={{height: '100vh', width: '100vw'}}>
-        <Outlet />
+    return <div className='row justify-content-center g-0'>
+        <div className='col-12'>
+            
+            <Navbar />
+            <Outlet />
+            
+        </div>
     </div>
+        
 }
