@@ -4,8 +4,8 @@ import { devtools, persist } from 'zustand/middleware'
 
 
 const ax = axios.create({
-    // baseURL: 'http://10.152.183.28', // dev
-    baseURL: 'https://ak.in-arthurs-apps.space', // prod
+    baseURL: 'http://10.152.183.28', // dev
+    // baseURL: 'https://ak.in-arthurs-apps.space', // prod
     headers: {
         // 'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem("akJWT")}`
@@ -15,6 +15,8 @@ const ax = axios.create({
 interface graphData {
     nodes: Array<{id: string, label: string}> | []
     links: Array<{source: string, target: string}> | []
+    node_labels: Array<string> | []
+    link_labels: Array<string> | []
 }
 
 type target = 'start' | 'end' | 'delete' | undefined
@@ -31,7 +33,10 @@ type prop = {
 type graphElem = {
     id: string,
     label: string
-    properties: {uuid: string}
+    properties: {
+        uuid: string,
+        title: string
+    }
     type: 'link' | 'node'
 }
 
@@ -53,6 +58,8 @@ interface GraphState {
     addLinkPropsToList: (key: string, value: string) => void
     addNodePropsToList: (key: string, value: string) => void
     deleteElem: (elem: graphElem) => void
+    updateProps: (type: string, props: {}, uuid: string, label: string) => void
+
 }
 
 
@@ -61,7 +68,7 @@ export const useGraphStore = create<GraphState>()(
     devtools((set) => ({
         isLoading: false,
         graphElemInfo: undefined,
-        graph: {nodes: [], links: []},
+        graph: {nodes: [], links: [], node_labels: [], link_labels: []},
         targetToSelect: undefined,
         link: {start: '', end: '', label: ''},
         linkPropsList: [],
@@ -119,7 +126,23 @@ export const useGraphStore = create<GraphState>()(
             set(state => ({...state, isLoading: false, graphElemInfo: undefined, targetToSelect: undefined}))
             const response3 = await ax.get('/graph/node/show-all')
             set((state) => ({...state, graph: response3.data}))
-
+        },
+        updateProps: async (type, props, uuid, label) => {
+            set(state => ({...state, isLoading: true}))
+            switch (type) {
+                case 'node':
+                    const response1 = await ax.post('/graph/update/node', {uuid, label, props: JSON.stringify(props)})
+                    break;
+                case 'link':
+                    const response2 = await ax.post('/graph/update/link', {uuid, props: JSON.stringify(props)})
+                    break;
+                default:
+                    console.log('DEFAULT CASE FROM store.ts -> ', type)
+                    break;
+            }
+            set(state => ({...state, isLoading: false, graphElemInfo: undefined, targetToSelect: undefined}))
+            const response3 = await ax.get('/graph/node/show-all')
+            set((state) => ({...state, graph: response3.data}))
         }
 
     }),

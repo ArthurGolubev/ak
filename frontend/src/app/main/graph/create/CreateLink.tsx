@@ -7,7 +7,7 @@ import { PropsList } from "../PropsList"
 
 export const CreateLink = () => {
     
-    const {link, targetToSelect, setTargetToSelect, createLink, addLinkPropsToList, linkPropsList, setLink, isLoading} = useGraphStore((state) => ({
+    const {graph, link, targetToSelect, setTargetToSelect, createLink, addLinkPropsToList, linkPropsList, setLink, isLoading} = useGraphStore((state) => ({
         setTargetToSelect: state.setTargetToSelect,
         targetToSelect: state.targetToSelect,
         isLoading: state.isLoading,
@@ -16,7 +16,18 @@ export const CreateLink = () => {
         addLinkPropsToList: state.addLinkPropsToList,
         linkPropsList: state.linkPropsList,
         setLink: state.setLink,
+        graph: state.graph
     }))
+
+    const [label, setLabel] = React.useState('')
+    const [title, setTitle] = React.useState('')
+
+    const createLinkHandler = () => {
+        createLink({...link, label}, [...linkPropsList, {key: 'title', value: title}])
+        setLabel('')
+        setTitle('')
+    }
+
 
     return <div className='row justify-content-center mt-3'>
         <div className='col-11'>
@@ -27,8 +38,31 @@ export const CreateLink = () => {
                 </div>
             </div>
 
+            <div className='row justify-content-center mt-2'>
+                <div className='col-12'>
+                    <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Node title..."
+                    value={title} 
+                    onChange={e => setTitle(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className='row justify-content-center mt-2'>
+                <div className='col-12'>
+                    <select className="form-select" onChange={e => setLabel(e.target.value)}>
+                        <option value={''}>-</option>
+                        {
+                            graph.link_labels.map((label: string) => (<option key={label} value={label}>{label}</option>))
+                        }
+                    </select>
+                </div>
+            </div>
+
             <div className='row justify-content-center mt-3'>
-                <input className='form-control' type='text' onChange={e=>setLink({...link, label: e.target.value})} placeholder="label" value={link.label}/>
+                <input className='form-control' type='text' onChange={e=>setLabel(e.target.value)} placeholder="label" value={label}/>
             </div>
             
             <div className='row justify-content-between mt-2'>
@@ -37,10 +71,10 @@ export const CreateLink = () => {
                 </div>
                 <div className='col-auto'>
                     <button
-                        onClick={()=>createLink(link, linkPropsList)}
+                        onClick={()=>createLinkHandler()}
                         className='btn btn-sm btn-primary'
                         type='button'
-                        disabled={!link.start || !link.end || !link.label || isLoading}
+                        disabled={!link.start || !link.end || label == '' || isLoading }
                         >create link</button>
                 </div>
                 <div className='col-auto'>
@@ -48,16 +82,6 @@ export const CreateLink = () => {
                 </div>
             </div>
 
-            <div className='row justify-content-center mt-2'>
-                {/* <div className='col-auto'>
-                    <button
-                        onClick={()=>createLink(link, linkPropsList)}
-                        className='btn btn-sm btn-primary'
-                        type='button'
-                        disabled={!link.start || !link.end || !link.label}
-                        >create link</button>
-                </div> */}
-            </div>
 
             <AddProp addProp={addLinkPropsToList}/>
 

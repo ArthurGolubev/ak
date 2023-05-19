@@ -9,6 +9,9 @@ import { User } from './app/profile/User'
 import { Registration } from './app/profile/Registration'
 import { Authorization } from './app/profile/Authorization'
 import { Delete } from './app/main/graph/delete/Delete'
+import { CreateNode } from './app/main/graph/create/CreateNode'
+import { CreateLink } from './app/main/graph/create/CreateLink'
+import { Edit } from './app/main/graph/edit/Edit'
 
 export const router = createHashRouter([
     {
@@ -25,11 +28,25 @@ export const router = createHashRouter([
                         children: [
                             {
                                 path: 'create',
-                                element: <Create />
+                                element: <Create />,
+                                children: [
+                                    {
+                                        path: 'node',
+                                        element: <CreateNode />
+                                    },
+                                    {
+                                        path: 'link',
+                                        element: <CreateLink />
+                                    }
+                                ]
                             },
                             {
                                 path: 'info',
                                 element: <Info />
+                            },
+                            {
+                                path: 'edit',
+                                element: <Edit />
                             },
                             {
                                 path: 'delete',

@@ -8,51 +8,10 @@ from backend.models import User, TargetElem
 from backend.auth import get_current_user
 from fastapi.responses import JSONResponse
 from backend.database import get_driver, query, database
+import time
 
 
 router = APIRouter(prefix='/graph')
-
-
-
-# @router.get('/clear')
-# async def clear_db(limit: int = 100):
-#     records, _, _ = await get_driver().execute_query(
-#         "MATCH (n1)-[r]-(n2) "
-#         "DELETE n1, n2, r"
-#     )
-
-
-
-# @router.get('/create')
-# async def create_data(limit: int = 100, user: User = Depends(get_current_user)):
-#     user_id=user.id
-#     name = "Arthur"
-#     friend_name_1 = "Guinevere_1"
-#     friend_name_2 = "Guinevere_2"
-#     records, _, _ = await get_driver().execute_query(
-#         "MERGE (r:Root {user: $user_id, uuid: apoc.create.uuid()}) "
-#         "MERGE (a:Person {user: $user_id, name: $name, uuid: apoc.create.uuid()})<-[:usr {uuid: apoc.create.uuid()}]-(r) "
-#         "MERGE (a)-[:KNOWS {uuid: apoc.create.uuid()}]->(friend1:Person {user: $user_id, name: $friend_name_1, uuid: apoc.create.uuid()}) "
-#         "MERGE (a)-[:KNOWS {uuid: apoc.create.uuid()}]->(friend2:Person {user: $user_id, name: $friend_name_2, uuid: apoc.create.uuid()}) ",
-#         user_id=user_id,
-#         name=name,
-#         friend_name_1=friend_name_1,
-#         friend_name_2=friend_name_2
-#     )
-
-
-
-# @router.get('/test_q')
-# async def test_q(q: str, user: User = Depends(get_current_user)):
-#     records, _, _ = await get_driver().execute_query(
-#         query(q),
-#         database_=database,
-#     )
-#     logger.info(f'\n\n{records}\n\n')
-#     for r in records:
-#         logger.info(f'{r}\n')
-
-
 
 
 @router.post('/node/create-new')
@@ -63,14 +22,8 @@ async def create_new_node(body: Dict[str, str], user: User = Depends(get_current
         new_dict[prop['key']] = prop['value']
     new_dict['user_id'] = user.id
     records, _, _ = await get_driver().execute_query(
-        # query(f"""
-        #     # MATCH (r:Root) WHERE r.user = $user_root_id
-        #     CREATE (r)-[:owner]->(n:{body.get('label')} $props)
-        #     SET n.uuid = apoc.create.uuid()
-        #     RETURN n
-        # """),
         query(f"""
-            CREATE (r)-[:owner]->(n:{body.get('label')} $props)
+            CREATE (n:`{body.get('label')}` $props)
             SET n.uuid = apoc.create.uuid()
             RETURN n
         """),
@@ -86,48 +39,45 @@ async def create_new_node(body: Dict[str, str], user: User = Depends(get_current
 
 @router.get('/node/show-all')
 async def show_all(user: User = Depends(get_current_user)):
+    t0 = time.time()
     records, _, _ = await get_driver().execute_query(
-        # query("""
-        #     MATCH (r:Root) WHERE r.user = {user_root_id}
-        #     MATCH p = (r)-[*]->(n)
-        #     RETURN n as node, relationships(p) as links
-        # """.format(
-        #     user_root_id=user_root_id,
-        # )),
-        # query("""
-        #     MATCH (n3) 
-        #     WHERE n3.user_id = $user_id 
-        #     RETURN n3 as node
-        # """),
         query("""
-            MATCH (n) 
-            WHERE n.user_id = $user_id 
-            OPTIONAL MATCH p = (n1)-[*]->(n2) 
-            WHERE n1.user_id = $user_id AND n2.user_id = $user_id 
-            RETURN n as node, relationships(p) as links 
+            MATCH p1 = (n {user_id: $user_id}) 
+            WHERE NOT (n)--() 
+            RETURN [n] as node, relationships(p1) as links 
+            UNION 
+            OPTIONAL MATCH p = (n1 {user_id: $user_id})-[*]->(n2 {user_id: $user_id}) 
+            RETURN nodes(p) as node, relationships(p) as links 
         """),
         database_=database,
         user_id=user.id
     )
+    t1 = time.time()
+    step1 = t1 - t0
     nodes: list[Any] = []
     links: list[Any] = []
-    logger.info(f'\n{records=}\n')
+    node_labels: list[Any] = []
+    link_labels: list[Any] = []
+    logger.info(f'\n\n{records=}')
     for record in records:
-        props = record.data().get('node')
-        logger.info(f'------------->{props=}\n')
-        if isinstance(props, dict):
-            props.pop('user_id')
-        node = {
-            "id": record["node"].get('uuid'),
-            # TODO отправлять список установленных ярлыков -> отображение графа должно брать первый из масива (сделать на клиенте)
-            "label": list(record["node"].labels)[0], 
-            "properties": props,
-            "type": "node"
-        }
-        try:
-            nodes.index(node)
-        except ValueError:
-            nodes.append(node)
+        nodes1 = record.get('node')
+        if nodes1:
+            for node1 in nodes1:
+                if isinstance(node1, dict):
+                    node1.pop('user_id')
+                labels = list(node1.labels)
+                node = {
+                    "id": node1.get('uuid'),
+                    # TODO отправлять список установленных ярлыков -> отображение графа должно брать первый из масива (сделать на клиенте)
+                    "label": labels[0], 
+                    "properties": {k: v for k, v in node1.items()},
+                    "type": "node"
+                }
+                try:
+                    nodes.index(node)
+                except ValueError:
+                    nodes.append(node)
+                node_labels.extend(labels)
         if record['links']:
             for link in record['links']:
                 source = link.start_node.get('uuid')
@@ -135,12 +85,21 @@ async def show_all(user: User = Depends(get_current_user)):
                 if source and target:
                     props = {k: v for k, v in link.items()}
                     props.pop('user_id')
-                    link = {"source": source, "target": target, "properties": props, "label": link.type, "type": "link"}
+                    label = link.type
+                    link = {"source": source, "target": target, "properties": props, "label": label, "type": "link"}
                     try:
                         links.index(link)
                     except ValueError:
                         links.append(link)
-    return JSONResponse(content={"nodes": nodes, "links": links})
+                    link_labels.append(label)
+    step2 = time.time() - t1
+    logger.info(f'\n\n{step1=}\n{step2=}\n\n')
+    return JSONResponse(content={
+        "nodes": nodes,
+        "links": links,
+        "node_labels": list(set(node_labels)),
+        "link_labels": list(set(link_labels))
+        })
 
 
 
@@ -159,7 +118,7 @@ async def create_link(body: Dict[str, str], label: str = 'TO', user: User = Depe
         query(f"""
             MATCH (s), (e)
             WHERE s.uuid = $start AND e.uuid = $end AND s.user_id = $user_id AND e.user_id = $user_id
-            CREATE (s)-[r:{link['label']} $props]->(e)
+            CREATE (s)-[r:`{link['label']}` $props]->(e)
             SET r.uuid = apoc.create.uuid()
         """),
         start=link['start'],
@@ -195,6 +154,58 @@ async def delete_link(target_elem: TargetElem, user: User = Depends(get_current_
         """),
         database_=database,
         uuid=target_elem.uuid,
+        user_id=user.id
+    )
+    logger.warning(f'{records=}')
+
+
+@router.post('/update/node')
+async def update_node(body: Dict[str, str], user: User = Depends(get_current_user)):
+    logger.info(f'{body=}')
+    uuid = body['uuid']
+    label = body['label']
+    props = json.loads(body['props'])
+    logger.info(f'{uuid=}')
+    logger.info(f'{props=}')
+    expr = "MATCH (n {user_id: $user_id, uuid: $uuid}) "
+    for k, v in props.items():
+        logger.info(f'\n{k=}\n{v=}')
+        if v == '':
+            expr += f"REMOVE n.{k} "
+        else:
+            expr += f"SET n.{k} = '{v}' "
+    expr += f"SET n:{label} "
+    expr += "RETURN n"
+    records, _, _ = await get_driver().execute_query(
+        query(expr),
+        database_=database,
+        uuid=uuid,
+        user_id=user.id
+    )
+    logger.warning(f'{records=}')
+
+
+@router.post('/update/link')
+async def update_link(body: Dict[str, str], user: User = Depends(get_current_user)):
+    logger.info(f'{body=}')
+    uuid = body['uuid']
+    label = body['label']
+    props = json.loads(body['props'])
+    logger.info(f'{uuid=}')
+    logger.info(f'{props=}')
+    logger.info(f'{label=}')
+    expr = "MATCH (n {user_id: $user_id, uuid: $uuid}) "
+    for k, v in props.items():
+        if v == '':
+            expr += f"REMOVE n.{k} "
+        else:
+            expr += f"SET n.{k} = '{v}' "
+    expr += f"SET n:'{label}' "
+    expr += "RETURN n"
+    records, _, _ = await get_driver().execute_query(
+        query(expr),
+        database_=database,
+        uuid=uuid,
         user_id=user.id
     )
     logger.warning(f'{records=}')
